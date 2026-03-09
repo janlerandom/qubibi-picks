@@ -370,8 +370,17 @@ function tokenUrl(aw) {
   return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
 }
 
-function findArtwork(id) {
-  return ARTWORKS.find(a => a.id === id);
+function tokenKey(t) {
+  return `${t.chain}/${t.contract}/${t.tid}`;
+}
+
+const AW_BY_KEY = {};
+ARTWORKS.forEach(aw => { AW_BY_KEY[tokenKey(aw)] = aw; });
+
+function findArtwork(t) {
+  // Support both new format {chain, contract, tid} and old format (integer DB id)
+  if (typeof t === "object" && t.chain !== undefined) return AW_BY_KEY[tokenKey(t)] || null;
+  return ARTWORKS.find(a => a.id === t);
 }
 
 // Lightbox
@@ -385,7 +394,7 @@ const lbMeta = document.getElementById("lb-meta");
 function openLightbox(list, idx) {
   lbList = list;
   lbIndex = idx;
-  const aw = findArtwork(lbList[lbIndex]);
+  const aw = AW_BY_KEY[lbList[lbIndex]] || null;
   if (!aw) return;
   lbImg.classList.remove("lb-exit-left","lb-exit-right","lb-enter");
   lbImg.src = imgUrl(aw.hash, 1800);
@@ -411,7 +420,7 @@ function lbNav(dir) {
     if (next < 0) next = lbList.length - 1;
     if (next >= lbList.length) next = 0;
     lbIndex = next;
-    const aw = findArtwork(lbList[lbIndex]);
+    const aw = AW_BY_KEY[lbList[lbIndex]] || null;
     if (!aw) { lbNavLock = false; return; }
     lbImg.style.visibility = "hidden";
     lbImg.classList.remove("lb-exit-left","lb-exit-right");
@@ -444,7 +453,7 @@ document.addEventListener("keydown", e => {
 
 // Load all rankings
 async function loadRankings() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/favourites?select=user_name,token_ids,updated_at&order=updated_at.desc`, {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/favourites?select=user_name,tokens,token_ids,updated_at&order=updated_at.desc`, {
     headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
   });
   return res.json();
@@ -475,7 +484,9 @@ async function init() {
     }
 
     rows.forEach(row => {
-      if (!row.token_ids || row.token_ids.length === 0) return;
+      // Prefer new tokens format, fall back to old token_ids
+      const items = (row.tokens && row.tokens.length > 0) ? row.tokens : row.token_ids;
+      if (!items || items.length === 0) return;
 
       const section = document.createElement("div");
       section.className = "user-section";
@@ -484,7 +495,7 @@ async function init() {
       header.className = "user-header";
       header.innerHTML = `
         <span class="user-name">${row.user_name}</span>
-        <span class="user-count">${row.token_ids.length} pick${row.token_ids.length !== 1 ? 's' : ''}</span>
+        <span class="user-count">${items.length} pick${items.length !== 1 ? 's' : ''}</span>
         <span class="user-date">${timeAgo(row.updated_at)}</span>
       `;
       section.appendChild(header);
@@ -492,20 +503,26 @@ async function init() {
       const grid = document.createElement("div");
       grid.className = "ranking-grid";
 
-      const ids = row.token_ids;
-      ids.forEach((id, idx) => {
-        const aw = findArtwork(id);
+      // Build lightbox key list
+      const lbKeys = items.map(item => {
+        const aw = findArtwork(item);
+        return aw ? tokenKey(aw) : null;
+      }).filter(Boolean);
+
+      items.forEach((item, idx) => {
+        const aw = findArtwork(item);
         if (!aw) return;
 
         const card = document.createElement("div");
         card.className = "rank-card";
         const displayName = aw.name !== aw.title ? aw.name : aw.title;
+        const lbIdx = lbKeys.indexOf(tokenKey(aw));
         card.innerHTML = `
           <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio:${aw.ar}">
           <div class="rank-badge">${idx + 1}</div>
           <div class="rank-overlay"><div class="title">${displayName}</div></div>
         `;
-        card.addEventListener("click", () => openLightbox([...ids], idx));
+        card.addEventListener("click", () => openLightbox([...lbKeys], lbIdx >= 0 ? lbIdx : idx));
         grid.appendChild(card);
       });
 

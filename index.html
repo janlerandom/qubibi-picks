@@ -487,7 +487,7 @@ async function saveToSupabase() {
     // Upsert by user_name
     await sbFetch("favourites?on_conflict=user_name", {
       method: "POST",
-      body: { user_name: userName, token_ids: favourites, updated_at: new Date().toISOString() },
+      body: { user_name: userName, tokens: favourites, updated_at: new Date().toISOString() },
       headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
       prefer: "resolution=merge-duplicates,return=representation",
     });
@@ -507,9 +507,9 @@ async function loadFromSupabase() {
   if (!userName) return;
   syncStatus.textContent = "loading...";
   try {
-    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=token_ids`);
-    if (rows.length > 0 && Array.isArray(rows[0].token_ids)) {
-      favourites = rows[0].token_ids;
+    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=tokens`);
+    if (rows.length > 0 && Array.isArray(rows[0].tokens) && rows[0].tokens.length > 0) {
+      favourites = rows[0].tokens;
       localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
     }
     syncStatus.textContent = "";
@@ -623,8 +623,23 @@ function tokenUrl(aw) {
   return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
 }
 
-// State
+function tokenKey(t) {
+  return `${t.chain}/${t.contract}/${t.tid}`;
+}
+
+const AW_BY_KEY = {};
+ARTWORKS.forEach(aw => { AW_BY_KEY[tokenKey(aw)] = aw; });
+
+// State — favourites is array of {chain, contract, tid}
 let favourites = JSON.parse(localStorage.getItem("qubibi-favs") || "[]");
+// Migrate old format (array of DB IDs → array of token objects)
+if (favourites.length > 0 && typeof favourites[0] === "number") {
+  favourites = favourites.map(id => {
+    const aw = ARTWORKS.find(a => a.id === id);
+    return aw ? { chain: aw.chain, contract: aw.contract, tid: aw.tid } : null;
+  }).filter(Boolean);
+  localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
+}
 
 function saveFavs() {
   localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
@@ -632,20 +647,21 @@ function saveFavs() {
   debouncedSave();
 }
 
-function isFav(id) { return favourites.includes(id); }
+function isFav(aw) { return favourites.some(f => tokenKey(f) === tokenKey(aw)); }
 
-function toggleFav(id) {
-  if (isFav(id)) {
-    favourites = favourites.filter(f => f !== id);
+function toggleFav(aw) {
+  const k = tokenKey(aw);
+  if (isFav(aw)) {
+    favourites = favourites.filter(f => tokenKey(f) !== k);
   } else {
-    favourites.push(id);
+    favourites.push({ chain: aw.chain, contract: aw.contract, tid: aw.tid });
   }
   saveFavs();
   renderAll();
 }
 
-function moveFav(id, dir) {
-  const idx = favourites.indexOf(id);
+function moveFav(key, dir) {
+  const idx = favourites.findIndex(f => tokenKey(f) === key);
   const newIdx = idx + dir;
   if (newIdx < 0 || newIdx >= favourites.length) return;
   [favourites[idx], favourites[newIdx]] = [favourites[newIdx], favourites[idx]];
@@ -653,8 +669,8 @@ function moveFav(id, dir) {
   renderFavs();
 }
 
-function removeFav(id) {
-  favourites = favourites.filter(f => f !== id);
+function removeFav(key) {
+  favourites = favourites.filter(f => tokenKey(f) !== key);
   saveFavs();
   renderAll();
 }
@@ -688,15 +704,14 @@ const lbFavBtn = document.getElementById("lb-fav");
 
 function getCurrentLbArtwork() {
   if (lbIndex < 0 || lbIndex >= lbList.length) return null;
-  const id = lbList[lbIndex];
-  return ARTWORKS.find(a => a.id === id);
+  return AW_BY_KEY[lbList[lbIndex]] || null;
 }
 
 function showLbArtwork(aw) {
   lbImg.src = imgUrl(aw.hash, 1800);
   lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
   lbMeta.textContent = "";
-  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+  lbFavBtn.classList.toggle("is-fav", isFav(aw));
 }
 
 function openLightbox(list, idx) {
@@ -740,7 +755,7 @@ function lbNav(dir) {
     const newSrc = imgUrl(aw.hash, 1800);
     lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
     lbMeta.textContent = "";
-    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+    lbFavBtn.classList.toggle("is-fav", isFav(aw));
 
     const reveal = () => {
       lbImg.style.visibility = "";
@@ -767,8 +782,8 @@ lbEl.querySelector(".lb-next").addEventListener("click", () => lbNav(1));
 lbFavBtn.addEventListener("click", () => {
   const aw = getCurrentLbArtwork();
   if (!aw) return;
-  toggleFav(aw.id);
-  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+  toggleFav(aw);
+  lbFavBtn.classList.toggle("is-fav", isFav(aw));
 });
 lbEl.addEventListener("click", e => {
   if (e.target === lbEl || e.target.classList.contains("lb-img-wrap")) closeLightbox();
@@ -782,8 +797,8 @@ document.addEventListener("keydown", e => {
   else if (e.key === "f" || e.key === "F") {
     const aw = getCurrentLbArtwork();
     if (!aw) return;
-    toggleFav(aw.id);
-    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+    toggleFav(aw);
+    lbFavBtn.classList.toggle("is-fav", isFav(aw));
   }
 });
 
@@ -791,7 +806,7 @@ document.addEventListener("keydown", e => {
 function renderGrid() {
   const grid = document.getElementById("view-all");
   grid.innerHTML = "";
-  const allIds = ARTWORKS.map(a => a.id);
+  const allKeys = ARTWORKS.map(a => tokenKey(a));
   ARTWORKS.forEach((aw, idx) => {
     const card = document.createElement("div");
     card.className = "card";
@@ -801,7 +816,7 @@ function renderGrid() {
     card.innerHTML = `
       <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio: ${aw.ar}">
       <a class="raster-link" href="${tokenUrl(aw)}" target="_blank" rel="noopener">raster</a>
-      <button class="fav-btn ${isFav(aw.id) ? 'is-fav' : ''}" title="Toggle favourite">\u2665</button>
+      <button class="fav-btn ${isFav(aw) ? 'is-fav' : ''}" title="Toggle favourite">\u2665</button>
       <div class="overlay">
         <div class="title">${displayName}</div>
       </div>
@@ -809,12 +824,12 @@ function renderGrid() {
 
     card.querySelector(".fav-btn").addEventListener("click", e => {
       e.stopPropagation();
-      toggleFav(aw.id);
+      toggleFav(aw);
     });
 
     card.addEventListener("click", e => {
       if (e.target.closest(".fav-btn") || e.target.closest(".raster-link")) return;
-      openLightbox(allIds, idx);
+      openLightbox(allKeys, idx);
     });
 
     grid.appendChild(card);
@@ -829,13 +844,15 @@ function renderFavs() {
     return;
   }
   list.innerHTML = "";
-  favourites.forEach((id, idx) => {
-    const aw = ARTWORKS.find(a => a.id === id);
+  const favKeys = favourites.map(f => tokenKey(f));
+  favourites.forEach((fav, idx) => {
+    const key = tokenKey(fav);
+    const aw = AW_BY_KEY[key];
     if (!aw) return;
     const item = document.createElement("div");
     item.className = "fav-item";
     item.draggable = true;
-    item.dataset.id = id;
+    item.dataset.key = key;
     const displayName = aw.name !== aw.title ? aw.name : aw.title;
 
     item.innerHTML = `
@@ -843,7 +860,7 @@ function renderFavs() {
       <img src="${imgUrl(aw.hash, 350)}" alt="${displayName}">
       <div class="info">
         <div class="title">${displayName}</div>
-        <div class="meta">${aw.title}</div>
+        <div class="meta">${aw.title} &middot; <a href="${tokenUrl(aw)}" target="_blank" rel="noopener" style="color:#666;text-decoration:none;border-bottom:1px solid #333">view on raster</a></div>
       </div>
       <div class="actions">
         <button class="up" title="Move up">\u2191</button>
@@ -852,21 +869,21 @@ function renderFavs() {
       </div>
     `;
 
-    item.querySelector(".up").addEventListener("click", e => { e.stopPropagation(); moveFav(id, -1); });
-    item.querySelector(".down").addEventListener("click", e => { e.stopPropagation(); moveFav(id, 1); });
-    item.querySelector(".remove").addEventListener("click", e => { e.stopPropagation(); removeFav(id); });
+    item.querySelector(".up").addEventListener("click", e => { e.stopPropagation(); moveFav(key, -1); });
+    item.querySelector(".down").addEventListener("click", e => { e.stopPropagation(); moveFav(key, 1); });
+    item.querySelector(".remove").addEventListener("click", e => { e.stopPropagation(); removeFav(key); });
 
     const openFavLb = e => {
-      if (e.target.closest(".actions")) return;
+      if (e.target.closest(".actions") || e.target.closest("a")) return;
       e.preventDefault();
-      openLightbox([...favourites], idx);
+      openLightbox([...favKeys], idx);
     };
     item.querySelector("img").addEventListener("click", openFavLb);
     item.querySelector(".info").addEventListener("click", openFavLb);
 
     // Drag and drop
     item.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("text/plain", id);
+      e.dataTransfer.setData("text/plain", key);
       item.classList.add("dragging");
     });
     item.addEventListener("dragend", () => item.classList.remove("dragging"));
@@ -878,12 +895,12 @@ function renderFavs() {
     item.addEventListener("drop", e => {
       e.preventDefault();
       item.classList.remove("drag-over");
-      const draggedId = parseInt(e.dataTransfer.getData("text/plain"));
-      const fromIdx = favourites.indexOf(draggedId);
-      const toIdx = favourites.indexOf(id);
-      if (fromIdx === toIdx) return;
-      favourites.splice(fromIdx, 1);
-      favourites.splice(toIdx, 0, draggedId);
+      const draggedKey = e.dataTransfer.getData("text/plain");
+      const fromIdx = favourites.findIndex(f => tokenKey(f) === draggedKey);
+      const toIdx = favourites.findIndex(f => tokenKey(f) === key);
+      if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0) return;
+      const [moved] = favourites.splice(fromIdx, 1);
+      favourites.splice(toIdx, 0, moved);
       saveFavs();
       renderFavs();
     });
