@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qubibi Collection — Pick Your Favourites</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: #0a0a0a;
+    color: #e0e0e0;
+    min-height: 100dvh;
+  }
+
+  header {
+    padding: 2rem 1.5rem 1rem;
+    text-align: center;
+    border-bottom: 1px solid #222;
+  }
+
+  header h1 {
+    font-size: 1.1rem;
+    font-weight: 300;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888;
+  }
+
+  header p {
+    font-size: 0.75rem;
+    color: #555;
+    margin-top: 0.4rem;
+  }
+
+  .tabs {
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    border-bottom: 1px solid #222;
+    position: sticky;
+    top: 0;
+    background: #0a0a0a;
+    z-index: 100;
+  }
+
+  .tab {
+    padding: 0.8rem 1.5rem;
+    font-family: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: none;
+    border: none;
+    color: #555;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .tab:hover { color: #aaa; }
+  .tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
+
+  .tab .count {
+    display: inline-block;
+    background: #222;
+    color: #888;
+    font-size: 0.65rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 2px;
+    margin-left: 0.3rem;
+    min-width: 1.2rem;
+    text-align: center;
+  }
+
+  .tab.active .count { background: #333; color: #ccc; }
+
+  /* Masonry grid */
+  .grid {
+    columns: 4;
+    column-gap: 3px;
+    padding: 3px;
+  }
+
+  @media (max-width: 1200px) { .grid { columns: 3; } }
+  @media (max-width: 800px) { .grid { columns: 2; } }
+
+  .card {
+    position: relative;
+    cursor: pointer;
+    overflow: hidden;
+    background: #111;
+    break-inside: avoid;
+    margin-bottom: 3px;
+  }
+
+  .card img {
+    width: 100%;
+    display: block;
+    transition: transform 0.3s ease;
+  }
+
+  .card:hover img { transform: scale(1.03); }
+
+  /* Lightbox */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+
+  .lightbox.open { opacity: 1; pointer-events: all; }
+
+  .lightbox .lb-img-wrap {
+    position: relative;
+    max-width: 92vw;
+    max-height: 88vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lightbox img {
+    max-width: 92vw;
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 2px;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .lightbox img.lb-exit-left {
+    opacity: 0;
+    transform: translateX(-40px) scale(0.97);
+  }
+
+  .lightbox img.lb-exit-right {
+    opacity: 0;
+    transform: translateX(40px) scale(0.97);
+  }
+
+  .lightbox img.lb-enter {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+
+  .lightbox .lb-close {
+    position: absolute;
+    top: 1rem;
+    right: 1.2rem;
+    font-size: 1.5rem;
+    color: #666;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s;
+    z-index: 1001;
+  }
+
+  .lightbox .lb-close:hover { color: #e0e0e0; }
+
+  .lightbox .lb-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: #555;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 1rem;
+    font-family: inherit;
+    transition: color 0.15s;
+    z-index: 1001;
+  }
+
+  .lightbox .lb-nav:hover { color: #e0e0e0; }
+  .lightbox .lb-prev { left: 0.5rem; }
+  .lightbox .lb-next { right: 0.5rem; }
+
+  .lightbox .lb-info {
+    position: absolute;
+    bottom: 1.2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 1001;
+  }
+
+  .lightbox .lb-info .title {
+    font-size: 0.8rem;
+    color: #ccc;
+  }
+
+  .lightbox .lb-info .meta {
+    font-size: 0.65rem;
+    color: #555;
+    margin-top: 0.2rem;
+  }
+
+  .lightbox .lb-fav {
+    position: absolute;
+    top: 1rem;
+    left: 1.2rem;
+    font-size: 1.3rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #555;
+    transition: color 0.15s;
+    z-index: 1001;
+  }
+
+  .lightbox .lb-fav:hover, .lightbox .lb-fav.is-fav { color: #ff4466; }
+
+  .card .overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.6rem 0.7rem;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .card:hover .overlay { opacity: 1; }
+
+  .card .overlay .title {
+    font-size: 0.7rem;
+    font-weight: 400;
+    color: #e0e0e0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card .overlay .meta {
+    font-size: 0.6rem;
+    color: #888;
+    margin-top: 0.15rem;
+  }
+
+  .card .fav-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0,0,0,0.5);
+    color: #888;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s, background 0.2s, color 0.2s;
+    backdrop-filter: blur(4px);
+  }
+
+  .card:hover .fav-btn { opacity: 1; }
+  .card .fav-btn.is-fav { opacity: 1; color: #ff4466; background: rgba(0,0,0,0.7); }
+  .card .fav-btn:hover { background: rgba(0,0,0,0.8); color: #ff4466; }
+
+  /* Favourites list */
+  .fav-list {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+
+  .fav-list-empty {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: #444;
+    font-size: 0.8rem;
+  }
+
+  .fav-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid #1a1a1a;
+    user-select: none;
+  }
+
+  .fav-item .rank {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #555;
+    min-width: 2rem;
+    text-align: center;
+  }
+
+  .fav-item img {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 2px;
+    background: #111;
+    cursor: pointer;
+  }
+
+  .fav-item .info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .fav-item .info .title {
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fav-item .info .meta {
+    font-size: 0.65rem;
+    color: #555;
+    margin-top: 0.15rem;
+  }
+
+  .fav-item .actions {
+    display: flex;
+    gap: 0.3rem;
+    flex-shrink: 0;
+  }
+
+  .fav-item .actions button {
+    width: 1.8rem;
+    height: 1.8rem;
+    border: 1px solid #333;
+    border-radius: 2px;
+    background: none;
+    color: #888;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: inherit;
+    transition: all 0.15s;
+  }
+
+  .fav-item .actions button:hover { border-color: #666; color: #e0e0e0; }
+  .fav-item .actions button.remove:hover { border-color: #ff4466; color: #ff4466; }
+
+  .fav-item.dragging { opacity: 0.4; }
+  .fav-item.drag-over { border-top: 2px solid #ff4466; }
+
+  /* Link to raster */
+  .card .raster-link {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    font-size: 0.6rem;
+    color: #888;
+    text-decoration: none;
+    background: rgba(0,0,0,0.5);
+    padding: 0.2rem 0.4rem;
+    border-radius: 2px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    backdrop-filter: blur(4px);
+  }
+
+  .card:hover .raster-link { opacity: 1; }
+  .card .raster-link:hover { color: #e0e0e0; }
+
+  @media (max-width: 600px) {
+    header h1 { font-size: 0.9rem; }
+    .tab { padding: 0.6rem 1rem; font-size: 0.65rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Qubibi &mdash; thefunnyguys collection</h1>
+  <p>click the heart to favourite, then rank them in the favourites tab</p>
+</header>
+
+<div class="tabs">
+  <button class="tab active" data-tab="all">All <span class="count" id="count-all">0</span></button>
+  <button class="tab" data-tab="favs">Favourites <span class="count" id="count-favs">0</span></button>
+</div>
+
+<div id="view-all" class="grid"></div>
+<div id="view-favs" style="display:none">
+  <div class="fav-list" id="fav-list"></div>
+</div>
+
+<div class="lightbox" id="lightbox">
+  <button class="lb-close">&times;</button>
+  <button class="lb-fav" id="lb-fav">&#9829;</button>
+  <button class="lb-nav lb-prev">&larr;</button>
+  <button class="lb-nav lb-next">&rarr;</button>
+  <div class="lb-img-wrap"><img id="lb-img" src="" alt=""></div>
+  <div class="lb-info">
+    <div class="title" id="lb-title"></div>
+    <div class="meta" id="lb-meta"></div>
+  </div>
+</div>
+
+<script>
+const ARTWORKS = [
+  {id:1304199,title:"2202271627",name:"2202271627",hash:"186f59ca05053381d0f887b0976bae7b0ff0153339cb26b4e0ca05d40834d4ca",type:"image/2",ar:1.9698,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"15326"},
+  {id:1306531,title:"220314k12oTv",name:"220314k12oTv",hash:"0f05482f0f7f654f574a82dd0b72425a6d75b1b8222ac19b35955024bd34e73a",type:"image/2",ar:1.9663,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"17658"},
+  {id:348331,title:"7120916012",name:"7120916012",hash:"29e64d6f0fdafb1bd4c77323f07de3783ca684024a8d3ebb09b44bc01eaacbd6",type:"gif/2",ar:0.75,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"139565"},
+  {id:1323210,title:"agg15B1rc024Fq",name:"agg15B1rc024Fq",hash:"23effade04aeee9d9178e8dcf01800f96d0e648ffae17d56084cbb093fd015e5",type:"image/2",ar:0.7514,chain:1,contract:"0x89f1692c8138e07851b3c307e201ab4542efc068",tid:"644633841"},
+  {id:13612415,title:"A Snap in Time",name:"A Snap in Time #6",hash:"7099727f2ae08d9c33032c267ea5242bb677e5b279441f274ddd51a4a82d06f1",type:"image/2",ar:1.0,chain:1,contract:"0x901ea3a7bd10e72390991bd9a4a8bb20b4a720e9",tid:"10"},
+  {id:1372813,title:"Awakened",name:"#127",hash:"1a2ded69cc04a3f2023f37f6c4f6d32fd72100362faa3cc4e00313790f13b029",type:"image/2",ar:0.6598,chain:7,contract:"0xf3851e1b7824bd920350e6fe9b890bb76d01c9f7",tid:"127"},
+  {id:1372814,title:"Awakened",name:"#128",hash:"ec23373cb2d1607356e316103cf963ed3d8a24d035f76787f756d95845b1263b",type:"image/2",ar:0.6598,chain:7,contract:"0xf3851e1b7824bd920350e6fe9b890bb76d01c9f7",tid:"128"},
+  {id:1372815,title:"Awakened",name:"#129",hash:"6ced73d4f41dd5977c82cf408ac7d6c524daecf114cc5f49839578bedf165602",type:"image/2",ar:0.6598,chain:7,contract:"0xf3851e1b7824bd920350e6fe9b890bb76d01c9f7",tid:"129"},
+  {id:1372816,title:"Awakened",name:"#130",hash:"ce45dde241cbe8d808c71dffda6a1f66d7c3b56ac459635c9c6ac91c19916d90",type:"image/2",ar:0.6598,chain:7,contract:"0xf3851e1b7824bd920350e6fe9b890bb76d01c9f7",tid:"130"},
+  {id:1372817,title:"Awakened",name:"#131",hash:"5a963faca5cb6e578d7e06916a8c16d12603b037b9de5bef1092ce0164651274",type:"image/2",ar:0.6598,chain:7,contract:"0xf3851e1b7824bd920350e6fe9b890bb76d01c9f7",tid:"131"},
+  {id:1290905,title:"BP",name:"BP 2201190209",hash:"3eae2235543e65dd45a42a5c14ddd1a291a366a9c502b3b222aea57b18681489",type:"image/2",ar:1.0,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"2032"},
+  {id:1323241,title:"ff27Y7ak023Ya",name:"ff27Y7ak023Ya",hash:"f8b6fe5dc747e06c7dfda939064e5ed336425a11d149e9ea77ae2475df79f6d7",type:"image/2",ar:0.6857,chain:1,contract:"0x89f1692c8138e07851b3c307e201ab4542efc068",tid:"3641011514"},
+  {id:1020660,title:"ge12Z2mi023El1",name:"ge12Z2mi023El1",hash:"311d7af858957da453201bb0921cf1e554e41c565acc59ff7fdd4528f1963a1c",type:"image/2",ar:1.0,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"811894"},
+  {id:1020660,title:"ge12Z2mi023El1",name:"ge12Z2mi023El1",hash:"311d7af858957da453201bb0921cf1e554e41c565acc59ff7fdd4528f1963a1c",type:"image/2",ar:1.0,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"811894"},
+  {id:1278976,title:"Margaret",name:"",hash:"8d2becb5a45664f70a8882a8ddb048bb0a567397cdbdc0b5215b057797dde7c5",type:"image/2",ar:0.6667,chain:1,contract:"0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",tid:"49000027"},
+  {id:1282212,title:"Margaret",name:"",hash:"39d022f67c8786d48afc59a4a3dae5e03b46c153b3651395c533488db39fe8a2",type:"image/2",ar:0.6667,chain:1,contract:"0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",tid:"49000019"},
+  {id:1281034,title:"Margaret",name:"",hash:"29f8f22b1edfb54ab7a7d310ab3bea1fe335c9057dc1d6eed15e8d13f4278710",type:"image/2",ar:0.6667,chain:1,contract:"0x0a1bbd57033f57e7b6743621b79fcb9eb2ce3676",tid:"49000066"},
+  {id:1323275,title:"mimizu Untitled",name:"mimizu Untitled #25",hash:"b601548a2b6705d5efe3fa6a9f586bcc124b2ed2ae956fc128f0b376f9f15667",type:"image/2",ar:1.3308,chain:1,contract:"0xa0f2569a6d8a83aad037a028e1357eb03e0085bd",tid:"77023521"},
+  {id:1323276,title:"mimizu Untitled",name:"mimizu Untitled #26",hash:"b3f4102fd4311c9ae163bf6c6b1b14e5d8bd657f3e2a88a9b21d4875e33c1882",type:"image/2",ar:0.7514,chain:1,contract:"0xa0f2569a6d8a83aad037a028e1357eb03e0085bd",tid:"3486133645"},
+  {id:1323279,title:"mimizu Untitled",name:"mimizu Untitled #29",hash:"2c831af641a1a6ff7299df4adfb2e50c00d6a9e8f3f9fee7c3404aa7bea9c6ec",type:"image/2",ar:0.7514,chain:1,contract:"0xa0f2569a6d8a83aad037a028e1357eb03e0085bd",tid:"3057745119"},
+  {id:223632,title:"mmz",name:"mmz_2103280247",hash:"51793f24348bce2de8455d3f3f93d2e04e3e9ba16378360d195600fcec8ee882",type:"image/2",ar:0.7057,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"14866"},
+  {id:223651,title:"mmz",name:"mmz_2103280310 \"2\"",hash:"1d5c1ba655459c004886fd2f6eece24bbefc15cb9600956fe0a45b6c19948c2f",type:"image/2",ar:0.7057,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"14885"},
+  {id:219384,title:"mmz",name:"mmz ms2103230339",hash:"0f5a059f7dc1660b5aa5efe9e0f2ac1e2029f22b6ed56dadddcde3c8ad912731",type:"image/2",ar:0.7057,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"10618"},
+  {id:395950,title:"MMZ",name:"MMZ 107",hash:"87ecaeb3edbe49558ee142f4b1764eaa9e962da1d65a5014b25b822a3bfc0503",type:"image/2",ar:0.7057,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"187184"},
+  {id:273793,title:"MMZ",name:"MMZ 12",hash:"75eee211da2e1f7ea857ebaeec7e146f348113f3de3f70715837a379e52356f1",type:"image/2",ar:0.3629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"65027"},
+  {id:429984,title:"MMZ",name:"MMZ 127",hash:"f0a379af11d5f2b580e7ef39b8a26143e2540975d05dcc85fe931b9e9951ee66",type:"image/2",ar:0.5629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"221218"},
+  {id:438825,title:"MMZ",name:"MMZ 132",hash:"93c4c6faccd98b307343f547d94d2a313b5bb70bb25569b778bbe678749decde",type:"image/2",ar:1.0,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"230059"},
+  {id:454188,title:"MMZ",name:"MMZ 135",hash:"0a0da7230c30b8c62fa76430b3235099cb17bbbda1fa6fb793167b5edab32f0a",type:"image/2",ar:0.6543,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"245422"},
+  {id:480666,title:"MMZ",name:"MMZ 140 A",hash:"71029506b399866d73511a20e0444b652963fcf730b47326fab5f0b8a623419d",type:"image/2",ar:1.7766,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"271900"},
+  {id:480655,title:"MMZ",name:"MMZ 140 B",hash:"5cf7d61e4ef57fcc13a6be41ce916b4e8c7e144f987b96575109c66f02df7635",type:"image/2",ar:1.7766,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"271889"},
+  {id:520725,title:"MMZ",name:"MMZ 148",hash:"fd03e8bb7f51369e220398dfaad1e56caef4126b1fd82819b68f44299841a0a4",type:"image/2",ar:0.7257,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"311959"},
+  {id:540994,title:"MMZ",name:"MMZ 152",hash:"ff820a27eccbcfb8990c7d76e4110fb48a5c169ca4ed9dc6a4eea4e383e1732b",type:"image/2",ar:2.0958,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"332228"},
+  {id:580900,title:"MMZ",name:"MMZ 157",hash:"e750672bf7fba84adca44598a6dc1e91c19786aec8032d8c3345c86650dceea4",type:"image/2",ar:0.5629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"372134"},
+  {id:583827,title:"MMZ",name:"MMZ 158",hash:"86914ae9336fc38d7ef4a1cb7d8e35ae71a63bdc706b0cb87a1e97cfd5c725f3",type:"image/2",ar:0.5629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"375061"},
+  {id:586640,title:"MMZ",name:"MMZ 159",hash:"e1f80471ec10fd4bbc6b74c0a8dc5263ff792f88f05fbe931103e41abc7fe546",type:"image/2",ar:0.5629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"377874"},
+  {id:597863,title:"MMZ",name:"MMZ 162",hash:"7060ca3f7b22706a9c222c6c93d685b2bb70964a85878ff0e3665d9fd4bc2e64",type:"image/2",ar:1.4056,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"389097"},
+  {id:629965,title:"MMZ",name:"MMZ 171 A",hash:"617b3de9e52442fef235d21f7e67697b41d66ce4cadabb5219d817954d6ade94",type:"image/2",ar:0.7114,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"421199"},
+  {id:635400,title:"MMZ",name:"MMZ 172 A",hash:"b2a72b01075acfcd00b24b20a107002eedcc0cb5997db17232f3bcd0c768ca5b",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"426634"},
+  {id:635405,title:"MMZ",name:"MMZ 172 B",hash:"bf4a5500a9d5a538e8ea5255c631f49c7ec000e040e23c2a16416b242d111ec8",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"426639"},
+  {id:635411,title:"MMZ",name:"MMZ 172 C",hash:"1a5e1cbc8a63d7f08ae51c7e7ec4f55f1153439eda59323d179621728208bf3d",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"426645"},
+  {id:639206,title:"MMZ",name:"MMZ 173 B",hash:"09e1af84d188245434e2035530db4992f4724bb625b9e024853b730bae002835",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"430440"},
+  {id:657572,title:"MMZ",name:"MMZ 177 C",hash:"f04140bd68490132dfa286bd77089ebc3404a55377be981d0c7f9e6be712c2b0",type:"image/2",ar:0.6943,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"448806"},
+  {id:676613,title:"MMZ",name:"MMZ 181 B",hash:"2d1d55d22682533bce7871b4efce7329f1e7a637e345b37d3c4b6a175bd9b9bd",type:"image/2",ar:0.7114,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"467847"},
+  {id:705543,title:"MMZ",name:"MMZ 185 A",hash:"c22142ec7459f81d26fca5354fa7b2ddb5a3427b59165e702c325ed0a968c005",type:"image/2",ar:0.4629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"496777"},
+  {id:705550,title:"MMZ",name:"MMZ 185 B",hash:"bdfb97c015f7d882c50e70902ae1ebe861c102c716b1866202fb4dcae56dc90f",type:"image/2",ar:0.4629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"496784"},
+  {id:705567,title:"MMZ",name:"MMZ 185 C",hash:"a833742ed787786b44c8aee73967fe34a89a34af6a54bddcf851a17e87017f15",type:"image/2",ar:0.4629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"496801"},
+  {id:709851,title:"MMZ",name:"MMZ 186 B",hash:"697ca774aa48f42672b81a363de4d3850574b8a889301536860ab1c4135ac0f7",type:"image/2",ar:0.4629,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"501085"},
+  {id:724451,title:"MMZ",name:"MMZ 188 C",hash:"afa008cabc266bf414d5074e465748228647e7ccc90a2d2b24416284b9c0d037",type:"image/2",ar:0.7114,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"515685"},
+  {id:747123,title:"MMZ",name:"MMZ 192 B",hash:"47de88f7c8658f7b2192ff2dee66e250f8bd6f1e757393b553b5205a580a0353",type:"image/2",ar:2.1605,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"538357"},
+  {id:770449,title:"MMZ",name:"MMZ 193 B",hash:"6a19377062b3a76676640fcab120aa51c6ecf2d4439e9c1a5d14e669d5b1b48d",type:"image/2",ar:0.6943,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"561683"},
+  {id:796798,title:"MMZ",name:"MMZ 197 I",hash:"1684ed985c039646656872522aa0469d07b00062574da77e8026f465cf7ad1b7",type:"image/2",ar:0.4,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"588032"},
+  {id:821358,title:"MMZ",name:"MMZ 199 E",hash:"f096938591f9614b491d3431ed95a487584efbf70a5dd45c84240c9c4dc6b064",type:"image/2",ar:1.4403,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"612592"},
+  {id:821971,title:"MMZ",name:"MMZ 200 C",hash:"297284218cde11aacb6ca4f78d3685fba8ac5fc6bfb7ff37f3959d7411952461",type:"image/2",ar:0.6943,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"613205"},
+  {id:841651,title:"MMZ",name:"MMZ 206 D",hash:"2c42e0f97fcc0b043f0dd281cb5eb3dff00e512ad1bfbe64376ac3f3084ad74d",type:"image/2",ar:0.6943,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"632885"},
+  {id:858255,title:"MMZ",name:"MMZ 210 A",hash:"4b0bed823746607ec0e97589f40e7d980e08006bb654e423953294d80e917513",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"649489"},
+  {id:858409,title:"MMZ",name:"MMZ 210 B",hash:"129bbd174ae8f8faaa6e44cd82dee7a1091a2e41bf50ec08520d7d23ebb544b7",type:"image/2",ar:0.6,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"649643"},
+  {id:863898,title:"MMZ",name:"MMZ 211 C",hash:"709cfd52d990f0653c4eb9064766fe31c754976f5fa5c6f078418862c3428583",type:"image/2",ar:1.4403,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"655132"},
+  {id:863906,title:"MMZ",name:"MMZ 211 K",hash:"faf0c5eadaf7ec90a4f28582c5d7baa5627837f1f5ae20339e78492d494facd9",type:"image/2",ar:0.6957,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"655140"},
+  {id:888456,title:"MMZ",name:"MMZ 214 O 1",hash:"e24dd4d02d9e1f4520ed12b8a78f38f56d584e7420bae1817c753e6ca972bf93",type:"image/2",ar:0.6171,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"679690"},
+  {id:888518,title:"MMZ",name:"MMZ 214 O 2",hash:"885d59974ee4eefd02742e378e593b094f01c7b8dd04b69ce36771aaf82ed592",type:"image/2",ar:0.618,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"679752"},
+  {id:891953,title:"MMZ",name:"MMZ 216",hash:"f2dc0d8e78613db36fd0f7cf5be2730cd64f94c8f62ca0b3ca21341c0672097a",type:"image/2",ar:2.2293,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"683187"},
+  {id:354289,title:"MMZ",name:"MMZ 67",hash:"2186dec2874a0d2fe564d17acb799abe611395ca511d0ffe602640bdebdaa14e",type:"image/2",ar:0.6571,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"145523"},
+  {id:740353,title:"MMZ",name:"MMZ Holiday",hash:"db298f59ad21b7d069a8704940bf1921ad9a8db7b1d7c0ed3bb7ea49664afcc0",type:"image/2",ar:2.4648,chain:3,contract:"KT1RJ6PbjHpwc3M5rw5s2Nbmefwbuwbdxton",tid:"531587"},
+  {id:8987442,title:"mmz last tango",name:"cgv3S34mb135Hi",hash:"f392654a1243388b893012ead68208f191436fed5691bb1dcf52938788d0acac",type:"image/2",ar:1.5003,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"15"},
+  {id:8987437,title:"mmz last tango",name:"eyx3P34np479Fe",hash:"9d27d32bd498daff6fc607199981ce99fd061dee247c603563befb7edfbd11a1",type:"image/2",ar:1.8496,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"26"},
+  {id:8987435,title:"mmz last tango",name:"foo3F34ce729Us",hash:"7943382735be3f0c9f1bc67cc0565157479c2a521845d01c17b5df134351734f",type:"image/2",ar:1.1429,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"29"},
+  {id:8987355,title:"mmz last tango",name:"kwb3D34nf203Aw",hash:"41953fc4604616234edf86e5e220389a133cebf833c48ffdcc735fb1509ca920",type:"image/2",ar:0.7916,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"48"},
+  {id:8987353,title:"mmz last tango",name:"mlx3S34zo699Ah",hash:"2af5c1c1837396f8aa0e60ed8e61f9a3ea3ef778365f8caf41021a6a16074be0",type:"image/2",ar:1.2632,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"51"},
+  {id:8987354,title:"mmz last tango",name:"sts3W34ju676Bu",hash:"fe4b0bfa6f295c9801f975a25583d2594a4687a57949fd4601e0e87ebca8170c",type:"image/2",ar:1.8501,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"75"},
+  {id:8987423,title:"mmz last tango",name:"vnn3C34zk154Og",hash:"84c546612229c0fe6edfebef31cfc6a4fe55e6a1a7b8d83de460c772fc7772fe",type:"image/2",ar:1.5,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"81"},
+  {id:8987422,title:"mmz last tango",name:"vqr3H34mh121Ub",hash:"e87311dc1c45fa1bf005740e7652ea0d761ea1b038b454b301e4306f0598590f",type:"image/2",ar:1.8691,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"82"},
+  {id:8987356,title:"mmz last tango",name:"xkp3F34ds417Qg",hash:"e8cbb275f09152940fca3a3794b0ebf0acd8824d808d4d429b238194a9c312d0",type:"image/2",ar:0.6667,chain:1,contract:"0x77846a4a4057779499c2b61576d3e73cde63d25d",tid:"86"},
+  {id:4651300,title:"qubibi solo show",name:"ge16B3vk423Nc",hash:"30f0e66bdc7c28e0b68736a7c89fd8cd1eb6c1c3476c8cf37161a7cdd15b88b5",type:"image/2",ar:1.5,chain:3,contract:"KT18jEB9uJTqVtChNnhhPSkaucieFnVACPKV",tid:"17"},
+  {id:4651260,title:"qubibi solo show",name:"ka16W3uy123Ee",hash:"6cbcbcbbc2fd082c667f5304e4be1541933c23741b416a5fe2d1ed8c4b39c2ec",type:"image/2",ar:0.75,chain:3,contract:"KT18jEB9uJTqVtChNnhhPSkaucieFnVACPKV",tid:"12"},
+  {id:4651281,title:"qubibi solo show",name:"ss16G3gp923Nh",hash:"590477724159bed627ee1319a87e0e06f1f776ccb876ec46ea34f12bbdc30c1c",type:"image/2",ar:0.6667,chain:3,contract:"KT18jEB9uJTqVtChNnhhPSkaucieFnVACPKV",tid:"15"},
+  {id:4651288,title:"qubibi solo show",name:"wn16Q3tf423Rq",hash:"dbabf5d615f8fc70cd9c9dcd5027ddbb48da68ca1c9f4a1d8832949cc3aaaf8b",type:"image/2",ar:1.5,chain:3,contract:"KT18jEB9uJTqVtChNnhhPSkaucieFnVACPKV",tid:"16"},
+  {id:4651259,title:"qubibi solo show",name:"xq16E3px323Fs",hash:"85fc51be333961d5137907cd8173bac662c08203b93def965690972ee924aa2b",type:"image/2",ar:0.75,chain:3,contract:"KT18jEB9uJTqVtChNnhhPSkaucieFnVACPKV",tid:"11"},
+  {id:1322868,title:"storeroom",name:"220426n16nFw",hash:"eefe5e9a159b06a66dcc94ef4acf4a7650bacc29bb4c81972c6c2ddc95afb71d",type:"image/2",ar:1.9663,chain:3,contract:"KT1KPth73LSTvaqin7bNc4nc2wWcdoxd3kMV",tid:"5"},
+  {id:1373029,title:"storeroom",name:"js29E3or623An",hash:"d010c9d95464fc4f146e5a31451f6ea855709d803de585fee1f36d498375aac6",type:"image/2",ar:0.6514,chain:1,contract:"0xf157ee7d7ef3bc8e034c0199fc4ef52b17d083ab",tid:"28"},
+  {id:1373014,title:"storeroom",name:"kz14S3ce623Yy",hash:"9291e5d161c925b3e6999beaf53f23b13f69bb7adff1549cc1d06cb1842f1777",type:"image/2",ar:0.6857,chain:1,contract:"0xf157ee7d7ef3bc8e034c0199fc4ef52b17d083ab",tid:"13"},
+  {id:1322878,title:"storeroom",name:"ph12H6jl722Sm",hash:"42a714bc92572010b26c3dc7caed3e2d826157fd83eade2d2ee3aba2389c1154",type:"image/2",ar:1.9663,chain:3,contract:"KT1KPth73LSTvaqin7bNc4nc2wWcdoxd3kMV",tid:"15"},
+  {id:1322915,title:"storeroom",name:"qa9G12jf322Pk",hash:"5527328748623b334b94bf42a8b85877bef8427f00b87f0ba82dabfedb4d1b9c",type:"image/2",ar:0.6886,chain:3,contract:"KT1KPth73LSTvaqin7bNc4nc2wWcdoxd3kMV",tid:"52"},
+  {id:1322931,title:"storeroom",name:"wq9K6cx02s3A",hash:"755112291e246b1025c222c691958326ab0ea3313848e3bc9993e483c0c1f467",type:"image/2",ar:0.6857,chain:3,contract:"KT1KPth73LSTvaqin7bNc4nc2wWcdoxd3kMV",tid:"68"},
+  {id:1373028,title:"storeroom",name:"xn29B3ki123Zc",hash:"d517cbfd0c3c58072b600ea03ed0c50622e7f338efa49eff0fbe9c32fb79bc55",type:"image/2",ar:0.6514,chain:1,contract:"0xf157ee7d7ef3bc8e034c0199fc4ef52b17d083ab",tid:"27"},
+  {id:19953772,title:"Water Studies",name:"Water Studies #15",hash:"86f64cc43f8eec8853334c2880a07377ace1d35dddd60fe8d3092b0d769be92f",type:"image/2",ar:1.8495,chain:1,contract:"0x8ed4c1e7001eda3407c5d40e42478267e773474a",tid:"14"},
+  {id:19954900,title:"Water Studies",name:"Water Studies #16",hash:"64ccdfee28e7b65893fb9111c9bc0aa01c914b956488b61158e9f225731f0953",type:"image/2",ar:1.8495,chain:1,contract:"0x8ed4c1e7001eda3407c5d40e42478267e773474a",tid:"15"},
+  {id:14594791,title:"Yesterday",name:"Yesterday #141",hash:"83799b29f4919055164dfcc32383328dbb99934533ba2a693c218e56378296aa",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"852"},
+  {id:14594784,title:"Yesterday",name:"Yesterday #142",hash:"0449385bd22d62dc90e8ccdc1dc398e26fad17349440e45beee41273e6456fb8",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"853"},
+  {id:14594785,title:"Yesterday",name:"Yesterday #143",hash:"c7a4c5741ea51b5fcceac962d4b040c088eb3a2fa211d64d1cf8e17e39b87a37",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"854"},
+  {id:14594787,title:"Yesterday",name:"Yesterday #144",hash:"515718e4e04747386dfac838872fdfaa0bd8bbaddc3306b220f7ebd4848d5929",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"855"},
+  {id:14594786,title:"Yesterday",name:"Yesterday #145",hash:"f0c8e80756395a0c83ac82c52851559648608168e399bfdcc2e65b136be71156",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"856"},
+  {id:1323221,title:"yw24Y8hg023Ab",name:"yw24Y8hg023Ab",hash:"2f9d698180de661881d5e841f7e4ace685d0572f972cf244a61192b9dff46b19",type:"image/2",ar:0.7486,chain:1,contract:"0x89f1692c8138e07851b3c307e201ab4542efc068",tid:"1194819249"}
+];
+const BITS_BASE = "https://bits.raster.art";
+
+function imgUrl(hash, size = 700) {
+  const prefix = hash.substring(0, 4);
+  return `${BITS_BASE}/${prefix}/${hash}/${size}.avif`;
+}
+
+function tokenUrl(aw) {
+  return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
+}
+
+// State
+let favourites = JSON.parse(localStorage.getItem("qubibi-favs") || "[]");
+
+function saveFavs() {
+  localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
+  updateCounts();
+}
+
+function isFav(id) { return favourites.includes(id); }
+
+function toggleFav(id) {
+  if (isFav(id)) {
+    favourites = favourites.filter(f => f !== id);
+  } else {
+    favourites.push(id);
+  }
+  saveFavs();
+  renderAll();
+}
+
+function moveFav(id, dir) {
+  const idx = favourites.indexOf(id);
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= favourites.length) return;
+  [favourites[idx], favourites[newIdx]] = [favourites[newIdx], favourites[idx]];
+  saveFavs();
+  renderFavs();
+}
+
+function removeFav(id) {
+  favourites = favourites.filter(f => f !== id);
+  saveFavs();
+  renderAll();
+}
+
+function updateCounts() {
+  document.getElementById("count-all").textContent = ARTWORKS.length;
+  document.getElementById("count-favs").textContent = favourites.length;
+}
+
+// Tabs
+let currentTab = "all";
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    currentTab = tab.dataset.tab;
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("view-all").style.display = currentTab === "all" ? "" : "none";
+    document.getElementById("view-favs").style.display = currentTab === "favs" ? "" : "none";
+    if (currentTab === "favs") renderFavs();
+  });
+});
+
+// Lightbox
+let lbIndex = -1;
+let lbList = [];
+const lbEl = document.getElementById("lightbox");
+const lbImg = document.getElementById("lb-img");
+const lbTitle = document.getElementById("lb-title");
+const lbMeta = document.getElementById("lb-meta");
+const lbFavBtn = document.getElementById("lb-fav");
+
+function getCurrentLbArtwork() {
+  if (lbIndex < 0 || lbIndex >= lbList.length) return null;
+  const id = lbList[lbIndex];
+  return ARTWORKS.find(a => a.id === id);
+}
+
+function showLbArtwork(aw) {
+  lbImg.src = imgUrl(aw.hash, 1800);
+  lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
+  lbMeta.textContent = "";
+  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+}
+
+function openLightbox(list, idx) {
+  lbList = list;
+  lbIndex = idx;
+  const aw = getCurrentLbArtwork();
+  if (!aw) return;
+  lbImg.classList.remove("lb-exit-left", "lb-exit-right", "lb-enter");
+  showLbArtwork(aw);
+  lbEl.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeLightbox() {
+  lbEl.classList.remove("open");
+  document.body.style.overflow = "";
+  lbIndex = -1;
+  lbList = [];
+}
+
+let lbNavLock = false;
+function lbNav(dir) {
+  if (lbIndex < 0 || lbList.length <= 1 || lbNavLock) return;
+  lbNavLock = true;
+  const exitClass = dir < 0 ? "lb-exit-right" : "lb-exit-left";
+  lbImg.classList.add(exitClass);
+
+  setTimeout(() => {
+    let next = lbIndex + dir;
+    if (next < 0) next = lbList.length - 1;
+    if (next >= lbList.length) next = 0;
+    lbIndex = next;
+    const aw = getCurrentLbArtwork();
+    if (!aw) { lbNavLock = false; return; }
+
+    // Hide old image completely, swap src, wait for load
+    lbImg.style.visibility = "hidden";
+    lbImg.classList.remove("lb-exit-left", "lb-exit-right");
+    lbImg.classList.add("lb-enter");
+
+    const newSrc = imgUrl(aw.hash, 1800);
+    lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
+    lbMeta.textContent = "";
+    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+
+    const reveal = () => {
+      lbImg.style.visibility = "";
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          lbImg.classList.remove("lb-enter");
+          lbNavLock = false;
+        });
+      });
+    };
+
+    if (lbImg.src === newSrc) {
+      reveal();
+    } else {
+      lbImg.onload = () => { lbImg.onload = null; reveal(); };
+      lbImg.src = newSrc;
+    }
+  }, 250);
+}
+
+lbEl.querySelector(".lb-close").addEventListener("click", closeLightbox);
+lbEl.querySelector(".lb-prev").addEventListener("click", () => lbNav(-1));
+lbEl.querySelector(".lb-next").addEventListener("click", () => lbNav(1));
+lbFavBtn.addEventListener("click", () => {
+  const aw = getCurrentLbArtwork();
+  if (!aw) return;
+  toggleFav(aw.id);
+  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+});
+lbEl.addEventListener("click", e => {
+  if (e.target === lbEl || e.target.classList.contains("lb-img-wrap")) closeLightbox();
+});
+
+document.addEventListener("keydown", e => {
+  if (lbIndex < 0) return;
+  if (e.key === "Escape") closeLightbox();
+  else if (e.key === "ArrowLeft") lbNav(-1);
+  else if (e.key === "ArrowRight") lbNav(1);
+  else if (e.key === "f" || e.key === "F") {
+    const aw = getCurrentLbArtwork();
+    if (!aw) return;
+    toggleFav(aw.id);
+    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
+  }
+});
+
+// Render grid
+function renderGrid() {
+  const grid = document.getElementById("view-all");
+  grid.innerHTML = "";
+  const allIds = ARTWORKS.map(a => a.id);
+  ARTWORKS.forEach((aw, idx) => {
+    const card = document.createElement("div");
+    card.className = "card";
+
+    const displayName = aw.name !== aw.title ? aw.name : aw.title;
+
+    card.innerHTML = `
+      <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio: ${aw.ar}">
+      <a class="raster-link" href="${tokenUrl(aw)}" target="_blank" rel="noopener">raster</a>
+      <button class="fav-btn ${isFav(aw.id) ? 'is-fav' : ''}" title="Toggle favourite">\u2665</button>
+      <div class="overlay">
+        <div class="title">${displayName}</div>
+      </div>
+    `;
+
+    card.querySelector(".fav-btn").addEventListener("click", e => {
+      e.stopPropagation();
+      toggleFav(aw.id);
+    });
+
+    card.addEventListener("click", e => {
+      if (e.target.closest(".fav-btn") || e.target.closest(".raster-link")) return;
+      openLightbox(allIds, idx);
+    });
+
+    grid.appendChild(card);
+  });
+}
+
+// Render favourites
+function renderFavs() {
+  const list = document.getElementById("fav-list");
+  if (favourites.length === 0) {
+    list.innerHTML = '<div class="fav-list-empty">No favourites yet. Go to the All tab and click hearts.</div>';
+    return;
+  }
+  list.innerHTML = "";
+  favourites.forEach((id, idx) => {
+    const aw = ARTWORKS.find(a => a.id === id);
+    if (!aw) return;
+    const item = document.createElement("div");
+    item.className = "fav-item";
+    item.draggable = true;
+    item.dataset.id = id;
+    const displayName = aw.name !== aw.title ? aw.name : aw.title;
+
+    item.innerHTML = `
+      <div class="rank">${idx + 1}</div>
+      <img src="${imgUrl(aw.hash, 350)}" alt="${displayName}">
+      <div class="info">
+        <div class="title">${displayName}</div>
+        <div class="meta">${aw.title}</div>
+      </div>
+      <div class="actions">
+        <button class="up" title="Move up">\u2191</button>
+        <button class="down" title="Move down">\u2193</button>
+        <button class="remove" title="Remove">\u00d7</button>
+      </div>
+    `;
+
+    item.querySelector(".up").addEventListener("click", e => { e.stopPropagation(); moveFav(id, -1); });
+    item.querySelector(".down").addEventListener("click", e => { e.stopPropagation(); moveFav(id, 1); });
+    item.querySelector(".remove").addEventListener("click", e => { e.stopPropagation(); removeFav(id); });
+
+    const openFavLb = e => {
+      if (e.target.closest(".actions")) return;
+      e.preventDefault();
+      openLightbox([...favourites], idx);
+    };
+    item.querySelector("img").addEventListener("click", openFavLb);
+    item.querySelector(".info").addEventListener("click", openFavLb);
+
+    // Drag and drop
+    item.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", id);
+      item.classList.add("dragging");
+    });
+    item.addEventListener("dragend", () => item.classList.remove("dragging"));
+    item.addEventListener("dragover", e => {
+      e.preventDefault();
+      item.classList.add("drag-over");
+    });
+    item.addEventListener("dragleave", () => item.classList.remove("drag-over"));
+    item.addEventListener("drop", e => {
+      e.preventDefault();
+      item.classList.remove("drag-over");
+      const draggedId = parseInt(e.dataTransfer.getData("text/plain"));
+      const fromIdx = favourites.indexOf(draggedId);
+      const toIdx = favourites.indexOf(id);
+      if (fromIdx === toIdx) return;
+      favourites.splice(fromIdx, 1);
+      favourites.splice(toIdx, 0, draggedId);
+      saveFavs();
+      renderFavs();
+    });
+
+    list.appendChild(item);
+  });
+}
+
+function renderAll() {
+  renderGrid();
+  if (currentTab === "favs") renderFavs();
+  updateCounts();
+}
+
+renderAll();
+</script>
+</body>
+</html>
