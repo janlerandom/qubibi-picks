@@ -153,19 +153,25 @@
     transform: scale(0.97);
   }
 
-  .lightbox .lb-close {
+  .lightbox .lb-close, .lightbox .lb-fav {
     position: absolute;
     top: 1rem;
-    right: 1.2rem;
     font-size: 1.5rem;
-    line-height: 1;
-    color: #666;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     cursor: pointer;
-    font-family: inherit;
     transition: color 0.15s;
     z-index: 1001;
+  }
+
+  .lightbox .lb-close {
+    right: 1.2rem;
+    color: #666;
+    font-family: inherit;
   }
 
   .lightbox .lb-close:hover { color: #e0e0e0; }
@@ -210,17 +216,8 @@
   }
 
   .lightbox .lb-fav {
-    position: absolute;
-    top: 1rem;
     left: 1.2rem;
-    font-size: 1.5rem;
-    line-height: 1;
-    background: none;
-    border: none;
-    cursor: pointer;
     color: #555;
-    transition: color 0.15s;
-    z-index: 1001;
   }
 
   .lightbox .lb-fav:hover, .lightbox .lb-fav.is-fav { color: #ff4466; }
