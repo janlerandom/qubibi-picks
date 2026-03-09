@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Qubibi Collection — Pick Your Favourites</title>
+<title>Qubibi Rankings — Everyone's Favourites</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500&display=swap');
 
@@ -36,74 +36,126 @@
     margin-top: 0.4rem;
   }
 
-  .tabs {
-    display: flex;
-    justify-content: center;
-    gap: 0;
-    border-bottom: 1px solid #222;
-    position: sticky;
-    top: 0;
-    background: #0a0a0a;
-    z-index: 100;
+  header a {
+    color: #666;
+    text-decoration: none;
+    border-bottom: 1px solid #333;
   }
 
-  .tab {
-    padding: 0.8rem 1.5rem;
-    font-family: inherit;
-    font-size: 0.75rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    background: none;
-    border: none;
-    color: #555;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-  }
+  header a:hover { color: #aaa; border-color: #666; }
 
-  .tab:hover { color: #aaa; }
-  .tab.active { color: #e0e0e0; border-bottom-color: #e0e0e0; }
-
-  .tab .count {
-    display: inline-block;
-    background: #222;
-    color: #888;
-    font-size: 0.65rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 2px;
-    margin-left: 0.3rem;
-    min-width: 1.2rem;
+  .loading {
     text-align: center;
+    padding: 4rem;
+    color: #444;
+    font-size: 0.8rem;
   }
 
-  .tab.active .count { background: #333; color: #ccc; }
-
-  /* Masonry grid */
-  .grid {
-    columns: 4;
-    column-gap: 3px;
-    padding: 3px;
+  .users {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
   }
 
-  @media (max-width: 1200px) { .grid { columns: 3; } }
-  @media (max-width: 800px) { .grid { columns: 2; } }
+  .user-section {
+    margin-bottom: 2.5rem;
+  }
 
-  .card {
+  .user-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid #1a1a1a;
+  }
+
+  .user-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #ccc;
+  }
+
+  .user-count {
+    font-size: 0.65rem;
+    color: #555;
+  }
+
+  .user-date {
+    font-size: 0.6rem;
+    color: #333;
+    margin-left: auto;
+  }
+
+  .ranking-grid {
+    display: flex;
+    gap: 3px;
+    overflow-x: auto;
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+    scrollbar-color: #222 transparent;
+  }
+
+  .ranking-grid::-webkit-scrollbar { height: 4px; }
+  .ranking-grid::-webkit-scrollbar-track { background: transparent; }
+  .ranking-grid::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+  .rank-card {
     position: relative;
+    flex-shrink: 0;
+    width: 120px;
     cursor: pointer;
     overflow: hidden;
     background: #111;
-    break-inside: avoid;
-    margin-bottom: 3px;
+    border-radius: 2px;
   }
 
-  .card img {
+  .rank-card img {
     width: 100%;
     display: block;
-    transition: transform 0.3s ease;
+    transition: transform 0.3s;
   }
 
-  .card:hover img { transform: scale(1.03); }
+  .rank-card:hover img { transform: scale(1.05); }
+
+  .rank-card .rank-badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: rgba(0,0,0,0.7);
+    color: #888;
+    font-size: 0.6rem;
+    padding: 0.15rem 0.4rem;
+    backdrop-filter: blur(4px);
+  }
+
+  .rank-card .rank-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.3rem 0.4rem;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85));
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .rank-card:hover .rank-overlay { opacity: 1; }
+
+  .rank-card .rank-overlay .title {
+    font-size: 0.55rem;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .empty-msg {
+    text-align: center;
+    padding: 4rem;
+    color: #333;
+    font-size: 0.8rem;
+  }
 
   /* Lightbox */
   .lightbox {
@@ -122,7 +174,6 @@
   .lightbox.open { opacity: 1; pointer-events: all; }
 
   .lightbox .lb-img-wrap {
-    position: relative;
     max-width: 92vw;
     max-height: 88vh;
     display: flex;
@@ -138,20 +189,9 @@
     transition: opacity 0.3s ease, transform 0.3s ease;
   }
 
-  .lightbox img.lb-exit-left {
-    opacity: 0;
-    transform: translateX(-40px) scale(0.97);
-  }
-
-  .lightbox img.lb-exit-right {
-    opacity: 0;
-    transform: translateX(40px) scale(0.97);
-  }
-
-  .lightbox img.lb-enter {
-    opacity: 0;
-    transform: scale(0.97);
-  }
+  .lightbox img.lb-exit-left { opacity: 0; transform: translateX(-40px) scale(0.97); }
+  .lightbox img.lb-exit-right { opacity: 0; transform: translateX(40px) scale(0.97); }
+  .lightbox img.lb-enter { opacity: 0; transform: scale(0.97); }
 
   .lightbox .lb-close {
     position: absolute;
@@ -163,7 +203,6 @@
     border: none;
     cursor: pointer;
     font-family: inherit;
-    transition: color 0.15s;
     z-index: 1001;
   }
 
@@ -180,7 +219,6 @@
     cursor: pointer;
     padding: 1rem;
     font-family: inherit;
-    transition: color 0.15s;
     z-index: 1001;
   }
 
@@ -197,223 +235,23 @@
     z-index: 1001;
   }
 
-  .lightbox .lb-info .title {
-    font-size: 0.8rem;
-    color: #ccc;
-  }
-
-  .lightbox .lb-info .meta {
-    font-size: 0.65rem;
-    color: #555;
-    margin-top: 0.2rem;
-  }
-
-  .lightbox .lb-fav {
-    position: absolute;
-    top: 1rem;
-    left: 1.2rem;
-    font-size: 1.3rem;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #555;
-    transition: color 0.15s;
-    z-index: 1001;
-  }
-
-  .lightbox .lb-fav:hover, .lightbox .lb-fav.is-fav { color: #ff4466; }
-
-  .card .overlay {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 0.6rem 0.7rem;
-    background: linear-gradient(transparent, rgba(0,0,0,0.85));
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-
-  .card:hover .overlay { opacity: 1; }
-
-  .card .overlay .title {
-    font-size: 0.7rem;
-    font-weight: 400;
-    color: #e0e0e0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .card .overlay .meta {
-    font-size: 0.6rem;
-    color: #888;
-    margin-top: 0.15rem;
-  }
-
-  .card .fav-btn {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    width: 2rem;
-    height: 2rem;
-    border-radius: 50%;
-    border: none;
-    background: rgba(0,0,0,0.5);
-    color: #888;
-    font-size: 1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s, background 0.2s, color 0.2s;
-    backdrop-filter: blur(4px);
-  }
-
-  .card:hover .fav-btn { opacity: 1; }
-  .card .fav-btn.is-fav { opacity: 1; color: #ff4466; background: rgba(0,0,0,0.7); }
-  .card .fav-btn:hover { background: rgba(0,0,0,0.8); color: #ff4466; }
-
-  /* Favourites list */
-  .fav-list {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 1rem;
-  }
-
-  .fav-list-empty {
-    text-align: center;
-    padding: 4rem 1rem;
-    color: #444;
-    font-size: 0.8rem;
-  }
-
-  .fav-item {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.6rem 0;
-    border-bottom: 1px solid #1a1a1a;
-    user-select: none;
-  }
-
-  .fav-item .rank {
-    font-size: 1rem;
-    font-weight: 500;
-    color: #555;
-    min-width: 2rem;
-    text-align: center;
-  }
-
-  .fav-item img {
-    width: 64px;
-    height: 64px;
-    object-fit: cover;
-    border-radius: 2px;
-    background: #111;
-    cursor: pointer;
-  }
-
-  .fav-item .info {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .fav-item .info .title {
-    font-size: 0.75rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .fav-item .info .meta {
-    font-size: 0.65rem;
-    color: #555;
-    margin-top: 0.15rem;
-  }
-
-  .fav-item .actions {
-    display: flex;
-    gap: 0.3rem;
-    flex-shrink: 0;
-  }
-
-  .fav-item .actions button {
-    width: 1.8rem;
-    height: 1.8rem;
-    border: 1px solid #333;
-    border-radius: 2px;
-    background: none;
-    color: #888;
-    font-size: 0.75rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-family: inherit;
-    transition: all 0.15s;
-  }
-
-  .fav-item .actions button:hover { border-color: #666; color: #e0e0e0; }
-  .fav-item .actions button.remove:hover { border-color: #ff4466; color: #ff4466; }
-
-  .fav-item.dragging { opacity: 0.4; }
-  .fav-item.drag-over { border-top: 2px solid #ff4466; }
-
-  /* Link to raster */
-  .card .raster-link {
-    position: absolute;
-    top: 0.5rem;
-    left: 0.5rem;
-    font-size: 0.6rem;
-    color: #888;
-    text-decoration: none;
-    background: rgba(0,0,0,0.5);
-    padding: 0.2rem 0.4rem;
-    border-radius: 2px;
-    opacity: 0;
-    transition: opacity 0.2s;
-    backdrop-filter: blur(4px);
-  }
-
-  .card:hover .raster-link { opacity: 1; }
-  .card .raster-link:hover { color: #e0e0e0; }
-
-  @media (max-width: 600px) {
-    header h1 { font-size: 0.9rem; }
-    .tab { padding: 0.6rem 1rem; font-size: 0.65rem; }
-  }
+  .lightbox .lb-info .title { font-size: 0.8rem; color: #ccc; }
+  .lightbox .lb-info .meta { font-size: 0.65rem; color: #555; margin-top: 0.2rem; }
 </style>
 </head>
 <body>
 
-<div id="name-screen" style="display:none;position:fixed;inset:0;z-index:2000;background:#0a0a0a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem">
-  <h1 style="font-size:1.1rem;font-weight:300;letter-spacing:0.15em;text-transform:uppercase;color:#888">Qubibi &mdash; thefunnyguys</h1>
-  <p style="font-size:0.75rem;color:#555">Enter your name to start picking favourites</p>
-  <input id="name-input" type="text" placeholder="Your name" style="font-family:inherit;font-size:0.85rem;padding:0.5rem 1rem;background:#111;border:1px solid #333;color:#e0e0e0;border-radius:2px;outline:none;width:200px;text-align:center">
-  <button id="name-submit" style="font-family:inherit;font-size:0.7rem;padding:0.4rem 1.2rem;background:#222;border:1px solid #333;color:#888;border-radius:2px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase">Start</button>
-</div>
-
 <header>
-  <h1>Qubibi &mdash; thefunnyguys collection</h1>
-  <p>click the heart to favourite, then rank them in the favourites tab &middot; saving as <span id="user-label" style="color:#888"></span> &middot; <a href="rankings.html" style="color:#666;text-decoration:none;border-bottom:1px solid #333">view all rankings</a></p>
-  <p id="sync-status" style="font-size:0.6rem;color:#333;margin-top:0.2rem"></p>
+  <h1>Qubibi &mdash; Rankings</h1>
+  <p>everyone's favourite picks &middot; <a href="index.html">pick yours</a></p>
 </header>
 
-<div class="tabs">
-  <button class="tab active" data-tab="all">All <span class="count" id="count-all">0</span></button>
-  <button class="tab" data-tab="favs">Favourites <span class="count" id="count-favs">0</span></button>
-</div>
-
-<div id="view-all" class="grid"></div>
-<div id="view-favs" style="display:none">
-  <div class="fav-list" id="fav-list"></div>
+<div id="content" class="users">
+  <div class="loading" id="loading">loading rankings...</div>
 </div>
 
 <div class="lightbox" id="lightbox">
   <button class="lb-close">&times;</button>
-  <button class="lb-fav" id="lb-fav">&#9829;</button>
   <button class="lb-nav lb-prev">&larr;</button>
   <button class="lb-nav lb-next">&rarr;</button>
   <div class="lb-img-wrap"><img id="lb-img" src="" alt=""></div>
@@ -424,99 +262,8 @@
 </div>
 
 <script>
-// Supabase config
 const SUPABASE_URL = "https://oepfeizkrcpgtflzrmep.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lcGZlaXprcmNwZ3RmbHpybWVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODQwMzQsImV4cCI6MjA4ODY2MDAzNH0.69sRi-M_SOEPAkiL_fVR7sgz4hNa1CxMVvDVpB_WMCA";
-
-async function sbFetch(path, opts = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Authorization": `Bearer ${SUPABASE_KEY}`,
-      "Content-Type": "application/json",
-      "Prefer": opts.prefer || "return=representation",
-      ...opts.headers,
-    },
-    method: opts.method || "GET",
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  return res.json();
-}
-
-// User name
-let userName = localStorage.getItem("qubibi-user") || "";
-const nameScreen = document.getElementById("name-screen");
-const nameInput = document.getElementById("name-input");
-const nameSubmit = document.getElementById("name-submit");
-const syncStatus = document.getElementById("sync-status");
-const userLabel = document.getElementById("user-label");
-
-function showNameScreen() {
-  nameScreen.style.display = "flex";
-}
-
-function hideNameScreen() {
-  nameScreen.style.display = "none";
-  userLabel.textContent = userName;
-}
-
-if (!userName) {
-  showNameScreen();
-} else {
-  hideNameScreen();
-}
-
-nameSubmit.addEventListener("click", startWithName);
-nameInput.addEventListener("keydown", e => { if (e.key === "Enter") startWithName(); });
-
-async function startWithName() {
-  const name = nameInput.value.trim();
-  if (!name) return;
-  userName = name;
-  localStorage.setItem("qubibi-user", userName);
-  hideNameScreen();
-  await loadFromSupabase();
-  renderAll();
-}
-
-let saveTimer = null;
-async function saveToSupabase() {
-  if (!userName) return;
-  syncStatus.textContent = "saving...";
-  try {
-    // Upsert by user_name
-    await sbFetch("favourites?on_conflict=user_name", {
-      method: "POST",
-      body: { user_name: userName, token_ids: favourites, updated_at: new Date().toISOString() },
-      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
-      prefer: "resolution=merge-duplicates,return=representation",
-    });
-    syncStatus.textContent = "saved";
-    setTimeout(() => { syncStatus.textContent = ""; }, 1500);
-  } catch (e) {
-    syncStatus.textContent = "save failed";
-  }
-}
-
-function debouncedSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToSupabase, 500);
-}
-
-async function loadFromSupabase() {
-  if (!userName) return;
-  syncStatus.textContent = "loading...";
-  try {
-    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=token_ids`);
-    if (rows.length > 0 && Array.isArray(rows[0].token_ids)) {
-      favourites = rows[0].token_ids;
-      localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
-    }
-    syncStatus.textContent = "";
-  } catch (e) {
-    syncStatus.textContent = "load failed";
-  }
-}
 
 const ARTWORKS = [
   {id:1304199,title:"2202271627",name:"2202271627",hash:"186f59ca05053381d0f887b0976bae7b0ff0153339cb26b4e0ca05d40834d4ca",type:"image/2",ar:1.9698,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"15326"},
@@ -612,70 +359,20 @@ const ARTWORKS = [
   {id:14594786,title:"Yesterday",name:"Yesterday #145",hash:"f0c8e80756395a0c83ac82c52851559648608168e399bfdcc2e65b136be71156",type:"image/2",ar:1.0,chain:3,contract:"KT1CB4MYiAViCuXWBU961x7LjQXGeA8SnQwt",tid:"856"},
   {id:1323221,title:"yw24Y8hg023Ab",name:"yw24Y8hg023Ab",hash:"2f9d698180de661881d5e841f7e4ace685d0572f972cf244a61192b9dff46b19",type:"image/2",ar:0.7486,chain:1,contract:"0x89f1692c8138e07851b3c307e201ab4542efc068",tid:"1194819249"}
 ];
+
 const BITS_BASE = "https://bits.raster.art";
 
-function imgUrl(hash, size = 700) {
-  const prefix = hash.substring(0, 4);
-  return `${BITS_BASE}/${prefix}/${hash}/${size}.avif`;
+function imgUrl(hash, size = 350) {
+  return `${BITS_BASE}/${hash.substring(0,4)}/${hash}/${size}.avif`;
 }
 
 function tokenUrl(aw) {
   return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
 }
 
-// State
-let favourites = JSON.parse(localStorage.getItem("qubibi-favs") || "[]");
-
-function saveFavs() {
-  localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
-  updateCounts();
-  debouncedSave();
+function findArtwork(id) {
+  return ARTWORKS.find(a => a.id === id);
 }
-
-function isFav(id) { return favourites.includes(id); }
-
-function toggleFav(id) {
-  if (isFav(id)) {
-    favourites = favourites.filter(f => f !== id);
-  } else {
-    favourites.push(id);
-  }
-  saveFavs();
-  renderAll();
-}
-
-function moveFav(id, dir) {
-  const idx = favourites.indexOf(id);
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= favourites.length) return;
-  [favourites[idx], favourites[newIdx]] = [favourites[newIdx], favourites[idx]];
-  saveFavs();
-  renderFavs();
-}
-
-function removeFav(id) {
-  favourites = favourites.filter(f => f !== id);
-  saveFavs();
-  renderAll();
-}
-
-function updateCounts() {
-  document.getElementById("count-all").textContent = ARTWORKS.length;
-  document.getElementById("count-favs").textContent = favourites.length;
-}
-
-// Tabs
-let currentTab = "all";
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    currentTab = tab.dataset.tab;
-    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-    tab.classList.add("active");
-    document.getElementById("view-all").style.display = currentTab === "all" ? "" : "none";
-    document.getElementById("view-favs").style.display = currentTab === "favs" ? "" : "none";
-    if (currentTab === "favs") renderFavs();
-  });
-});
 
 // Lightbox
 let lbIndex = -1;
@@ -684,28 +381,16 @@ const lbEl = document.getElementById("lightbox");
 const lbImg = document.getElementById("lb-img");
 const lbTitle = document.getElementById("lb-title");
 const lbMeta = document.getElementById("lb-meta");
-const lbFavBtn = document.getElementById("lb-fav");
-
-function getCurrentLbArtwork() {
-  if (lbIndex < 0 || lbIndex >= lbList.length) return null;
-  const id = lbList[lbIndex];
-  return ARTWORKS.find(a => a.id === id);
-}
-
-function showLbArtwork(aw) {
-  lbImg.src = imgUrl(aw.hash, 1800);
-  lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
-  lbMeta.textContent = "";
-  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
-}
 
 function openLightbox(list, idx) {
   lbList = list;
   lbIndex = idx;
-  const aw = getCurrentLbArtwork();
+  const aw = findArtwork(lbList[lbIndex]);
   if (!aw) return;
-  lbImg.classList.remove("lb-exit-left", "lb-exit-right", "lb-enter");
-  showLbArtwork(aw);
+  lbImg.classList.remove("lb-exit-left","lb-exit-right","lb-enter");
+  lbImg.src = imgUrl(aw.hash, 1800);
+  lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
+  lbMeta.textContent = "";
   lbEl.classList.add("open");
   document.body.style.overflow = "hidden";
 }
@@ -714,197 +399,125 @@ function closeLightbox() {
   lbEl.classList.remove("open");
   document.body.style.overflow = "";
   lbIndex = -1;
-  lbList = [];
 }
 
 let lbNavLock = false;
 function lbNav(dir) {
   if (lbIndex < 0 || lbList.length <= 1 || lbNavLock) return;
   lbNavLock = true;
-  const exitClass = dir < 0 ? "lb-exit-right" : "lb-exit-left";
-  lbImg.classList.add(exitClass);
-
+  lbImg.classList.add(dir < 0 ? "lb-exit-right" : "lb-exit-left");
   setTimeout(() => {
     let next = lbIndex + dir;
     if (next < 0) next = lbList.length - 1;
     if (next >= lbList.length) next = 0;
     lbIndex = next;
-    const aw = getCurrentLbArtwork();
+    const aw = findArtwork(lbList[lbIndex]);
     if (!aw) { lbNavLock = false; return; }
-
-    // Hide old image completely, swap src, wait for load
     lbImg.style.visibility = "hidden";
-    lbImg.classList.remove("lb-exit-left", "lb-exit-right");
+    lbImg.classList.remove("lb-exit-left","lb-exit-right");
     lbImg.classList.add("lb-enter");
-
-    const newSrc = imgUrl(aw.hash, 1800);
     lbTitle.textContent = aw.name !== aw.title ? `${aw.title} — ${aw.name}` : aw.title;
     lbMeta.textContent = "";
-    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
-
+    const newSrc = imgUrl(aw.hash, 1800);
     const reveal = () => {
       lbImg.style.visibility = "";
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          lbImg.classList.remove("lb-enter");
-          lbNavLock = false;
-        });
-      });
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        lbImg.classList.remove("lb-enter");
+        lbNavLock = false;
+      }));
     };
-
-    if (lbImg.src === newSrc) {
-      reveal();
-    } else {
-      lbImg.onload = () => { lbImg.onload = null; reveal(); };
-      lbImg.src = newSrc;
-    }
+    if (lbImg.src === newSrc) { reveal(); }
+    else { lbImg.onload = () => { lbImg.onload = null; reveal(); }; lbImg.src = newSrc; }
   }, 250);
 }
 
 lbEl.querySelector(".lb-close").addEventListener("click", closeLightbox);
 lbEl.querySelector(".lb-prev").addEventListener("click", () => lbNav(-1));
 lbEl.querySelector(".lb-next").addEventListener("click", () => lbNav(1));
-lbFavBtn.addEventListener("click", () => {
-  const aw = getCurrentLbArtwork();
-  if (!aw) return;
-  toggleFav(aw.id);
-  lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
-});
-lbEl.addEventListener("click", e => {
-  if (e.target === lbEl || e.target.classList.contains("lb-img-wrap")) closeLightbox();
-});
-
+lbEl.addEventListener("click", e => { if (e.target === lbEl || e.target.classList.contains("lb-img-wrap")) closeLightbox(); });
 document.addEventListener("keydown", e => {
   if (lbIndex < 0) return;
   if (e.key === "Escape") closeLightbox();
   else if (e.key === "ArrowLeft") lbNav(-1);
   else if (e.key === "ArrowRight") lbNav(1);
-  else if (e.key === "f" || e.key === "F") {
-    const aw = getCurrentLbArtwork();
-    if (!aw) return;
-    toggleFav(aw.id);
-    lbFavBtn.classList.toggle("is-fav", isFav(aw.id));
-  }
 });
 
-// Render grid
-function renderGrid() {
-  const grid = document.getElementById("view-all");
-  grid.innerHTML = "";
-  const allIds = ARTWORKS.map(a => a.id);
-  ARTWORKS.forEach((aw, idx) => {
-    const card = document.createElement("div");
-    card.className = "card";
-
-    const displayName = aw.name !== aw.title ? aw.name : aw.title;
-
-    card.innerHTML = `
-      <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio: ${aw.ar}">
-      <a class="raster-link" href="${tokenUrl(aw)}" target="_blank" rel="noopener">raster</a>
-      <button class="fav-btn ${isFav(aw.id) ? 'is-fav' : ''}" title="Toggle favourite">\u2665</button>
-      <div class="overlay">
-        <div class="title">${displayName}</div>
-      </div>
-    `;
-
-    card.querySelector(".fav-btn").addEventListener("click", e => {
-      e.stopPropagation();
-      toggleFav(aw.id);
-    });
-
-    card.addEventListener("click", e => {
-      if (e.target.closest(".fav-btn") || e.target.closest(".raster-link")) return;
-      openLightbox(allIds, idx);
-    });
-
-    grid.appendChild(card);
+// Load all rankings
+async function loadRankings() {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/favourites?select=user_name,token_ids,updated_at&order=updated_at.desc`, {
+    headers: { "apikey": SUPABASE_KEY, "Authorization": `Bearer ${SUPABASE_KEY}` }
   });
+  return res.json();
 }
 
-// Render favourites
-function renderFavs() {
-  const list = document.getElementById("fav-list");
-  if (favourites.length === 0) {
-    list.innerHTML = '<div class="fav-list-empty">No favourites yet. Go to the All tab and click hearts.</div>';
-    return;
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+async function init() {
+  const content = document.getElementById("content");
+  const loading = document.getElementById("loading");
+
+  try {
+    const rows = await loadRankings();
+    loading.remove();
+
+    if (rows.length === 0) {
+      content.innerHTML = '<div class="empty-msg">No one has picked favourites yet.</div>';
+      return;
+    }
+
+    rows.forEach(row => {
+      if (!row.token_ids || row.token_ids.length === 0) return;
+
+      const section = document.createElement("div");
+      section.className = "user-section";
+
+      const header = document.createElement("div");
+      header.className = "user-header";
+      header.innerHTML = `
+        <span class="user-name">${row.user_name}</span>
+        <span class="user-count">${row.token_ids.length} pick${row.token_ids.length !== 1 ? 's' : ''}</span>
+        <span class="user-date">${timeAgo(row.updated_at)}</span>
+      `;
+      section.appendChild(header);
+
+      const grid = document.createElement("div");
+      grid.className = "ranking-grid";
+
+      const ids = row.token_ids;
+      ids.forEach((id, idx) => {
+        const aw = findArtwork(id);
+        if (!aw) return;
+
+        const card = document.createElement("div");
+        card.className = "rank-card";
+        const displayName = aw.name !== aw.title ? aw.name : aw.title;
+        card.innerHTML = `
+          <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio:${aw.ar}">
+          <div class="rank-badge">${idx + 1}</div>
+          <div class="rank-overlay"><div class="title">${displayName}</div></div>
+        `;
+        card.addEventListener("click", () => openLightbox([...ids], idx));
+        grid.appendChild(card);
+      });
+
+      section.appendChild(grid);
+      content.appendChild(section);
+    });
+  } catch (e) {
+    loading.textContent = "failed to load rankings";
   }
-  list.innerHTML = "";
-  favourites.forEach((id, idx) => {
-    const aw = ARTWORKS.find(a => a.id === id);
-    if (!aw) return;
-    const item = document.createElement("div");
-    item.className = "fav-item";
-    item.draggable = true;
-    item.dataset.id = id;
-    const displayName = aw.name !== aw.title ? aw.name : aw.title;
-
-    item.innerHTML = `
-      <div class="rank">${idx + 1}</div>
-      <img src="${imgUrl(aw.hash, 350)}" alt="${displayName}">
-      <div class="info">
-        <div class="title">${displayName}</div>
-        <div class="meta">${aw.title}</div>
-      </div>
-      <div class="actions">
-        <button class="up" title="Move up">\u2191</button>
-        <button class="down" title="Move down">\u2193</button>
-        <button class="remove" title="Remove">\u00d7</button>
-      </div>
-    `;
-
-    item.querySelector(".up").addEventListener("click", e => { e.stopPropagation(); moveFav(id, -1); });
-    item.querySelector(".down").addEventListener("click", e => { e.stopPropagation(); moveFav(id, 1); });
-    item.querySelector(".remove").addEventListener("click", e => { e.stopPropagation(); removeFav(id); });
-
-    const openFavLb = e => {
-      if (e.target.closest(".actions")) return;
-      e.preventDefault();
-      openLightbox([...favourites], idx);
-    };
-    item.querySelector("img").addEventListener("click", openFavLb);
-    item.querySelector(".info").addEventListener("click", openFavLb);
-
-    // Drag and drop
-    item.addEventListener("dragstart", e => {
-      e.dataTransfer.setData("text/plain", id);
-      item.classList.add("dragging");
-    });
-    item.addEventListener("dragend", () => item.classList.remove("dragging"));
-    item.addEventListener("dragover", e => {
-      e.preventDefault();
-      item.classList.add("drag-over");
-    });
-    item.addEventListener("dragleave", () => item.classList.remove("drag-over"));
-    item.addEventListener("drop", e => {
-      e.preventDefault();
-      item.classList.remove("drag-over");
-      const draggedId = parseInt(e.dataTransfer.getData("text/plain"));
-      const fromIdx = favourites.indexOf(draggedId);
-      const toIdx = favourites.indexOf(id);
-      if (fromIdx === toIdx) return;
-      favourites.splice(fromIdx, 1);
-      favourites.splice(toIdx, 0, draggedId);
-      saveFavs();
-      renderFavs();
-    });
-
-    list.appendChild(item);
-  });
 }
 
-function renderAll() {
-  renderGrid();
-  if (currentTab === "favs") renderFavs();
-  updateCounts();
-}
-
-// Init
-(async () => {
-  if (userName) {
-    await loadFromSupabase();
-  }
-  renderAll();
-})();
+init();
 </script>
 </body>
 </html>
