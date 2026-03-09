@@ -440,7 +440,12 @@ async function sbFetch(path, opts = {}) {
     method: opts.method || "GET",
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  return res.json();
+  const data = await res.json();
+  if (!res.ok) {
+    console.error("Supabase error:", res.status, data);
+    throw new Error(data.message || `HTTP ${res.status}`);
+  }
+  return data;
 }
 
 // User name
@@ -507,9 +512,19 @@ async function loadFromSupabase() {
   if (!userName) return;
   syncStatus.textContent = "loading...";
   try {
-    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=tokens`);
-    if (rows.length > 0 && Array.isArray(rows[0].tokens) && rows[0].tokens.length > 0) {
-      favourites = rows[0].tokens;
+    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=tokens,token_ids`);
+    if (rows.length > 0) {
+      if (Array.isArray(rows[0].tokens) && rows[0].tokens.length > 0) {
+        favourites = rows[0].tokens;
+      } else if (Array.isArray(rows[0].token_ids) && rows[0].token_ids.length > 0) {
+        // Migrate from old token_ids format
+        favourites = rows[0].token_ids.map(id => {
+          const aw = ARTWORKS.find(a => a.id === id);
+          return aw ? { chain: aw.chain, contract: aw.contract, tid: aw.tid } : null;
+        }).filter(Boolean);
+        // Save migrated data back
+        debouncedSave();
+      }
       localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
     }
     syncStatus.textContent = "";

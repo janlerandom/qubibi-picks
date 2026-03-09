@@ -90,10 +90,10 @@
   .ranking-grid {
     display: flex;
     align-items: flex-end;
-    gap: 3px;
+    gap: 6px;
     overflow-x: auto;
     padding-bottom: 0.5rem;
-    height: 200px;
+    height: 300px;
     scrollbar-width: thin;
     scrollbar-color: #222 transparent;
   }
@@ -109,7 +109,7 @@
     cursor: pointer;
     overflow: hidden;
     background: #111;
-    border-radius: 2px;
+    border-radius: 3px;
     display: flex;
     align-items: flex-end;
   }
@@ -524,7 +524,7 @@ async function init() {
         const card = document.createElement("div");
         card.className = "rank-card";
         // Width proportional to aspect ratio: landscape gets more space
-        const cardWidth = Math.round(200 * Math.max(aw.ar, 0.45));
+        const cardWidth = Math.round(300 * Math.max(aw.ar, 0.45));
         card.style.width = `${cardWidth}px`;
         card.style.minWidth = `${cardWidth}px`;
         const displayName = aw.name !== aw.title ? aw.name : aw.title;
