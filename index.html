@@ -388,9 +388,17 @@
 </head>
 <body>
 
+<div id="name-screen" style="display:none;position:fixed;inset:0;z-index:2000;background:#0a0a0a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem">
+  <h1 style="font-size:1.1rem;font-weight:300;letter-spacing:0.15em;text-transform:uppercase;color:#888">Qubibi &mdash; thefunnyguys</h1>
+  <p style="font-size:0.75rem;color:#555">Enter your name to start picking favourites</p>
+  <input id="name-input" type="text" placeholder="Your name" style="font-family:inherit;font-size:0.85rem;padding:0.5rem 1rem;background:#111;border:1px solid #333;color:#e0e0e0;border-radius:2px;outline:none;width:200px;text-align:center">
+  <button id="name-submit" style="font-family:inherit;font-size:0.7rem;padding:0.4rem 1.2rem;background:#222;border:1px solid #333;color:#888;border-radius:2px;cursor:pointer;letter-spacing:0.1em;text-transform:uppercase">Start</button>
+</div>
+
 <header>
   <h1>Qubibi &mdash; thefunnyguys collection</h1>
-  <p>click the heart to favourite, then rank them in the favourites tab</p>
+  <p>click the heart to favourite, then rank them in the favourites tab &middot; saving as <span id="user-label" style="color:#888"></span></p>
+  <p id="sync-status" style="font-size:0.6rem;color:#333;margin-top:0.2rem"></p>
 </header>
 
 <div class="tabs">
@@ -416,6 +424,100 @@
 </div>
 
 <script>
+// Supabase config
+const SUPABASE_URL = "https://oepfeizkrcpgtflzrmep.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9lcGZlaXprcmNwZ3RmbHpybWVwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwODQwMzQsImV4cCI6MjA4ODY2MDAzNH0.69sRi-M_SOEPAkiL_fVR7sgz4hNa1CxMVvDVpB_WMCA";
+
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": opts.prefer || "return=representation",
+      ...opts.headers,
+    },
+    method: opts.method || "GET",
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  return res.json();
+}
+
+// User name
+let userName = localStorage.getItem("qubibi-user") || "";
+const nameScreen = document.getElementById("name-screen");
+const nameInput = document.getElementById("name-input");
+const nameSubmit = document.getElementById("name-submit");
+const syncStatus = document.getElementById("sync-status");
+const userLabel = document.getElementById("user-label");
+
+function showNameScreen() {
+  nameScreen.style.display = "flex";
+}
+
+function hideNameScreen() {
+  nameScreen.style.display = "none";
+  userLabel.textContent = userName;
+}
+
+if (!userName) {
+  showNameScreen();
+} else {
+  hideNameScreen();
+}
+
+nameSubmit.addEventListener("click", startWithName);
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") startWithName(); });
+
+async function startWithName() {
+  const name = nameInput.value.trim();
+  if (!name) return;
+  userName = name;
+  localStorage.setItem("qubibi-user", userName);
+  hideNameScreen();
+  await loadFromSupabase();
+  renderAll();
+}
+
+let saveTimer = null;
+async function saveToSupabase() {
+  if (!userName) return;
+  syncStatus.textContent = "saving...";
+  try {
+    // Upsert by user_name
+    await sbFetch("favourites?on_conflict=user_name", {
+      method: "POST",
+      body: { user_name: userName, token_ids: favourites, updated_at: new Date().toISOString() },
+      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
+      prefer: "resolution=merge-duplicates,return=representation",
+    });
+    syncStatus.textContent = "saved";
+    setTimeout(() => { syncStatus.textContent = ""; }, 1500);
+  } catch (e) {
+    syncStatus.textContent = "save failed";
+  }
+}
+
+function debouncedSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveToSupabase, 500);
+}
+
+async function loadFromSupabase() {
+  if (!userName) return;
+  syncStatus.textContent = "loading...";
+  try {
+    const rows = await sbFetch(`favourites?user_name=eq.${encodeURIComponent(userName)}&select=token_ids`);
+    if (rows.length > 0 && Array.isArray(rows[0].token_ids)) {
+      favourites = rows[0].token_ids;
+      localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
+    }
+    syncStatus.textContent = "";
+  } catch (e) {
+    syncStatus.textContent = "load failed";
+  }
+}
+
 const ARTWORKS = [
   {id:1304199,title:"2202271627",name:"2202271627",hash:"186f59ca05053381d0f887b0976bae7b0ff0153339cb26b4e0ca05d40834d4ca",type:"image/2",ar:1.9698,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"15326"},
   {id:1306531,title:"220314k12oTv",name:"220314k12oTv",hash:"0f05482f0f7f654f574a82dd0b72425a6d75b1b8222ac19b35955024bd34e73a",type:"image/2",ar:1.9663,chain:3,contract:"KT1LjmAdYQCLBjwv4S2oFkEzyHVkomAf5MrW",tid:"17658"},
@@ -527,6 +629,7 @@ let favourites = JSON.parse(localStorage.getItem("qubibi-favs") || "[]");
 function saveFavs() {
   localStorage.setItem("qubibi-favs", JSON.stringify(favourites));
   updateCounts();
+  debouncedSave();
 }
 
 function isFav(id) { return favourites.includes(id); }
@@ -795,7 +898,13 @@ function renderAll() {
   updateCounts();
 }
 
-renderAll();
+// Init
+(async () => {
+  if (userName) {
+    await loadFromSupabase();
+  }
+  renderAll();
+})();
 </script>
 </body>
 </html>
