@@ -619,8 +619,10 @@ function imgUrl(hash, size = 700) {
   return `${BITS_BASE}/${prefix}/${hash}/${size}.avif`;
 }
 
+const CHAIN_SLUGS = { 1: "ethereum", 3: "tezos", 7: "shape" };
+
 function tokenUrl(aw) {
-  return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
+  return `https://www.raster.art/token/${CHAIN_SLUGS[aw.chain] || aw.chain}/${aw.contract}/${aw.tid}`;
 }
 
 function tokenKey(t) {

@@ -89,9 +89,11 @@
 
   .ranking-grid {
     display: flex;
+    align-items: flex-end;
     gap: 3px;
     overflow-x: auto;
     padding-bottom: 0.5rem;
+    height: 200px;
     scrollbar-width: thin;
     scrollbar-color: #222 transparent;
   }
@@ -103,16 +105,20 @@
   .rank-card {
     position: relative;
     flex-shrink: 0;
-    width: 120px;
+    height: 100%;
     cursor: pointer;
     overflow: hidden;
     background: #111;
     border-radius: 2px;
+    display: flex;
+    align-items: flex-end;
   }
 
   .rank-card img {
+    height: 100%;
     width: 100%;
     display: block;
+    object-fit: cover;
     transition: transform 0.3s;
   }
 
@@ -366,8 +372,10 @@ function imgUrl(hash, size = 350) {
   return `${BITS_BASE}/${hash.substring(0,4)}/${hash}/${size}.avif`;
 }
 
+const CHAIN_SLUGS = { 1: "ethereum", 3: "tezos", 7: "shape" };
+
 function tokenUrl(aw) {
-  return `https://www.raster.art/token/${aw.chain}/${aw.contract}/${aw.tid}`;
+  return `https://www.raster.art/token/${CHAIN_SLUGS[aw.chain] || aw.chain}/${aw.contract}/${aw.tid}`;
 }
 
 function tokenKey(t) {
@@ -515,10 +523,14 @@ async function init() {
 
         const card = document.createElement("div");
         card.className = "rank-card";
+        // Width proportional to aspect ratio: landscape gets more space
+        const cardWidth = Math.round(200 * Math.max(aw.ar, 0.45));
+        card.style.width = `${cardWidth}px`;
+        card.style.minWidth = `${cardWidth}px`;
         const displayName = aw.name !== aw.title ? aw.name : aw.title;
         const lbIdx = lbKeys.indexOf(tokenKey(aw));
         card.innerHTML = `
-          <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy" style="aspect-ratio:${aw.ar}">
+          <img src="${imgUrl(aw.hash)}" alt="${displayName}" loading="lazy">
           <div class="rank-badge">${idx + 1}</div>
           <div class="rank-overlay"><div class="title">${displayName}</div></div>
         `;
