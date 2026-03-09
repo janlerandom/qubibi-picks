@@ -377,6 +377,13 @@
   .fav-item .actions button.remove:hover { border-color: #ff4466; color: #ff4466; }
 
   .fav-item.dragging { opacity: 0.4; }
+  .fav-item.touch-dragging {
+    opacity: 0.85;
+    background: #1a1a1a;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    z-index: 10;
+    position: relative;
+  }
   .fav-item.drag-over { border-top: 2px solid #ff4466; }
 
   /* Link to raster */
@@ -1008,7 +1015,7 @@ function renderFavs() {
     item.querySelector("img").addEventListener("click", openFavLb);
     item.querySelector(".info").addEventListener("click", openFavLb);
 
-    // Drag and drop
+    // Desktop drag and drop
     item.addEventListener("dragstart", e => {
       e.dataTransfer.setData("text/plain", key);
       item.classList.add("dragging");
@@ -1032,8 +1039,74 @@ function renderFavs() {
       renderFavs();
     });
 
+    // Touch drag reorder (long-press to start)
+    let touchTimer = null;
+    item.addEventListener("touchstart", e => {
+      if (e.target.closest(".actions") || e.target.closest("a") || e.target.closest(".rank")) return;
+      touchTimer = setTimeout(() => {
+        touchTimer = null;
+        startTouchDrag(item, key, idx, e.touches[0]);
+      }, 400);
+    }, { passive: true });
+    item.addEventListener("touchmove", () => { if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } }, { passive: true });
+    item.addEventListener("touchend", () => { if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; } });
+
     list.appendChild(item);
   });
+}
+
+// Touch drag state
+let touchDragItem = null, touchDragKey = null, touchDragFromIdx = -1;
+
+function startTouchDrag(item, key, fromIdx, touch) {
+  // Haptic feedback if available
+  if (navigator.vibrate) navigator.vibrate(30);
+  touchDragItem = item;
+  touchDragKey = key;
+  touchDragFromIdx = fromIdx;
+  item.classList.add("touch-dragging");
+
+  function getTargetItem(y) {
+    const items = document.querySelectorAll(".fav-item");
+    for (const el of items) {
+      const rect = el.getBoundingClientRect();
+      if (y >= rect.top && y <= rect.bottom) return el;
+    }
+    return null;
+  }
+
+  function onMove(e) {
+    e.preventDefault();
+    const y = e.touches[0].clientY;
+    document.querySelectorAll(".fav-item.drag-over").forEach(el => el.classList.remove("drag-over"));
+    const target = getTargetItem(y);
+    if (target && target !== item) target.classList.add("drag-over");
+  }
+
+  function onEnd(e) {
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onEnd);
+    item.classList.remove("touch-dragging");
+    document.querySelectorAll(".fav-item.drag-over").forEach(el => el.classList.remove("drag-over"));
+
+    const y = e.changedTouches[0].clientY;
+    const target = getTargetItem(y);
+    if (target && target !== item && target.dataset.key) {
+      const toIdx = favourites.findIndex(f => tokenKey(f) === target.dataset.key);
+      if (toIdx >= 0 && touchDragFromIdx >= 0 && toIdx !== touchDragFromIdx) {
+        const [moved] = favourites.splice(touchDragFromIdx, 1);
+        favourites.splice(toIdx, 0, moved);
+        saveFavs();
+        renderFavs();
+      }
+    }
+    touchDragItem = null;
+    touchDragKey = null;
+    touchDragFromIdx = -1;
+  }
+
+  document.addEventListener("touchmove", onMove, { passive: false });
+  document.addEventListener("touchend", onEnd);
 }
 
 function renderAll() {
