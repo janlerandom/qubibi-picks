@@ -476,12 +476,13 @@ async function sbFetch(path, opts = {}) {
     method: opts.method || "GET",
     body: opts.body ? JSON.stringify(opts.body) : undefined,
   });
-  const data = await res.json();
   if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
     console.error("Supabase error:", res.status, data);
     throw new Error(data.message || `HTTP ${res.status}`);
   }
-  return data;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
 }
 
 // User name
@@ -577,15 +578,13 @@ async function saveToSupabase() {
   if (!userName) return;
   syncStatus.textContent = "saving...";
   try {
-    // Upsert by user_name
     await sbFetch("favourites?on_conflict=user_name", {
       method: "POST",
       body: { user_name: userName, tokens: favourites, updated_at: new Date().toISOString() },
-      headers: { "Prefer": "resolution=merge-duplicates,return=representation" },
-      prefer: "resolution=merge-duplicates,return=representation",
+      prefer: "resolution=merge-duplicates,return=minimal",
     });
     syncStatus.textContent = "saved";
-    setTimeout(() => { syncStatus.textContent = ""; }, 1500);
+    setTimeout(() => { syncStatus.textContent = ""; }, 1000);
   } catch (e) {
     syncStatus.textContent = "save failed";
   }
@@ -593,7 +592,7 @@ async function saveToSupabase() {
 
 function debouncedSave() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(saveToSupabase, 500);
+  saveTimer = setTimeout(saveToSupabase, 250);
 }
 
 async function loadFromSupabase() {
